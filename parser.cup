@@ -1,0 +1,169 @@
+import java_cup.runtime.*;
+import java.util.*;
+import java.util.function.*;
+
+parser code 
+{:
+    public Map<Object, Object> variables = new HashMap<>();
+    public Map<String, Function> functions = new HashMap<>();
+    {
+        functions.put("LENGTH", (arg) -> {
+            return arg.toString().length();
+        });
+
+        functions.put("CONCAT", (arg) -> {
+            return arg.toString().length();
+        });
+
+        functions.put("REVERSE", (arg) -> {
+            String str = arg.toString();
+            String reverse = "";
+        
+            for(int i = str.length() - 1; i >= 0; i--)
+            {
+                reverse = reverse + str.charAt(i);
+            }
+            return reverse;
+        });
+
+        functions.put("PRINT", (arg) -> {
+            return arg;
+        });
+
+        functions.put("FSUB", (arg) -> {
+            return arg.toString().split("\\s")[0];
+        });
+
+        functions.put("LSUB", (arg) -> {
+            String[] arr = arg.toString().split("\\s");
+            return arr[arr.length - 1];
+        });
+    }
+
+    List args = new ArrayList<>();
+
+:};
+
+terminal           SEMI, DOUBLE_COLON;
+terminal           ARG, VAR, ASSIGN, FUNCTION, PLUS, MINUS, TIMES, DIVIDE, LBRACKET, RBRACKET, COMMA;     
+terminal           LENGTH, CONCAT, REVERSE, PRINT, FSUB, LSUB;
+terminal Integer   NUMBER;
+
+non terminal Object     expr_list, expr_part, expr, function, variable, fname, arg, vname, math_expr, args_list;
+non terminal Integer    numb;
+
+expr_list               ::= expr_list expr_part | expr_part;
+
+expr_part               ::= expr:e
+                            {: 
+                                if(e != null)
+                                {
+                                    System.out.println(e); 
+                                } 
+                            :}
+                            SEMI
+                            ;
+
+expr                    ::= function:f {: RESULT = f; :}
+                            | 
+                            variable;
+
+function                ::= fname:f DOUBLE_COLON arg:a
+                            {:
+                                String arg = a.toString();
+                                RESULT = ((Function)f).apply(arg.substring(1, arg.length() - 1));
+                            :}
+                            |
+                            fname:f DOUBLE_COLON vname:a
+                            {:
+                                String arg = variables.get(a).toString();
+                                RESULT = ((Function)f).apply(arg);
+                            :}
+                            |
+                            fname:f DOUBLE_COLON function:a
+                            {:
+                                String arg = a.toString();
+                                RESULT = ((Function)f).apply(arg);
+                            :}
+                            |
+                            fname:f DOUBLE_COLON LBRACKET args_list:a RBRACKET
+                            {:
+                                List arr = (List)a;
+                                String result = "";
+                                for(Object o : arr){
+                                    result += o.toString();
+                                }
+                                arr.clear();                           
+                                RESULT = result;
+                            :}
+                            |
+                            FUNCTION DOUBLE_COLON math_expr:a
+                            {:
+                                RESULT = a;
+                            :};
+
+fname                   ::= CONCAT  {: RESULT = functions.get("CONCAT"); :}
+                            |
+                            LENGTH  {: RESULT = functions.get("LENGTH"); :}
+                            |
+                            REVERSE {: RESULT = functions.get("REVERSE"); :}
+                            |
+                            PRINT   {: RESULT = functions.get("PRINT"); :}             
+                            |
+                            LSUB    {: RESULT = functions.get("LSUB"); :}  
+                            |
+                            FSUB    {: RESULT = functions.get("FSUB"); :};    
+
+args_list               ::= args_list COMMA numb:n {: args.add(n); RESULT = args;:} 
+                            | 
+                            args_list COMMA arg:a {: args.add(a); RESULT = args; :} 
+                            | 
+                            arg:a {: args.add(a); RESULT = args; :} 
+                            | 
+                            numb:n {: args.add(n); RESULT = args; :};
+
+math_expr               ::= numb:e PLUS numb:f 
+                            {: 
+                                RESULT = new Integer(e.intValue() + f.intValue()); 
+                            :}
+                            |
+                            numb:e MINUS numb:f 
+                            {: 
+                                RESULT = new Integer(e.intValue() - f.intValue()); 
+                            :}
+                            |
+                            numb:e TIMES numb:f 
+                            {: 
+                                RESULT = new Integer(e.intValue() * f.intValue()); 
+                            :}
+                            |
+                            numb:e DIVIDE numb:f 
+                            {: 
+                                RESULT = new Integer(e.intValue() / f.intValue()); 
+                            :};       
+
+numb                    ::= NUMBER:n {: RESULT = new Integer(n.intValue()); :}
+                            |
+                            vname:v {: RESULT = new Integer(variables.get(v).toString()); :};             
+
+variable                ::= vname:vn ASSIGN arg:a
+                            {:
+                                variables.put(vn, a.toString().substring(1, a.toString().length() - 1));
+                                RESULT = a;
+                            :}
+                            |
+                            vname:vn ASSIGN function:a
+                            {:
+                                variables.put(vn, a);
+                                RESULT = a;
+                            :}
+                            |
+                            vname:vn ASSIGN numb:a
+                            {:
+                                variables.put(vn, a);
+                                RESULT = a;
+                            :};
+
+vname                   ::= VAR:v   {: RESULT = v; :};
+
+arg                     ::= ARG:a   {: RESULT = a; :};    
