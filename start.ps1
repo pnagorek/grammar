@@ -1,12 +1,17 @@
 Remove-Item -Exclude "Main.java" *.java
-Remove-Item *.class
+Remove-Item bin/*.class
 
-$cup_dep = "java-cup-11b-runtime.jar;."
+$src = "src"
+$dest = "bin"
 
-java -jar java-cup-11b.jar -interface -parser Parser parser.cup
+$cup_run_dep = "jar/java-cup-11b-runtime.jar;."
+$cup_dep = "./jar/java-cup-11b.jar"
+$flex_dep = "./jar/jflex-full-1.7.0.jar"
 
-java -jar jflex-full-1.7.0.jar lexer.flex
+java -jar $cup_dep -interface -parser Parser -symbols sym parser.cup
 
-javac -classpath $cup_dep *.java
+java -jar $flex_dep lexer.flex
 
-java -cp $cup_dep Main
+javac -d $dest -classpath $cup_run_dep *.java
+
+java -cp "$cup_run_dep;$dest" Main
