@@ -1,56 +1,73 @@
 import java_cup.runtime.*;
 import java.util.*;
 import java.util.function.*;
+import java.util.stream.*;
 
 parser code 
 {:
     public Map<Object, Object> variables = new HashMap<>();
-    public Map<String, Function> functions = new HashMap<>();
+    
+    public String clearArg(String arg)
     {
-        functions.put("LENGTH", (arg) -> {
-            return arg.toString().length();
-        });
-
-        functions.put("CONCAT", (arg) -> {
-            return arg.toString().length();
-        });
-
-        functions.put("REVERSE", (arg) -> {
-            String str = arg.toString();
-            String reverse = "";
-        
-            for(int i = str.length() - 1; i >= 0; i--)
-            {
-                reverse = reverse + str.charAt(i);
-            }
-            return reverse;
-        });
-
-        functions.put("PRINT", (arg) -> {
-            return arg;
-        });
-
-        functions.put("FSUB", (arg) -> {
-            return arg.toString().split("\\s")[0];
-        });
-
-        functions.put("LSUB", (arg) -> {
-            String[] arr = arg.toString().split("\\s");
-            return arr[arr.length - 1];
-        });
+      return arg.substring(1, arg.length() - 1);
     }
 
-    List args = new ArrayList<>();
+    public String reverse(String text)
+    {
+        String reverse = "";
+        
+        for(int i = text.length() - 1; i >= 0; i--)
+        {
+            reverse = reverse + text.charAt(i);
+        }
+        return reverse;
+    }
+
+    public String getFirstSub(String text)
+    {
+      return text.split("\\s")[0];
+    }
+
+    public String getLastSub(String text)
+    {
+      String[] arr = text.split("\\s");
+      return arr[arr.length -1];
+    }
+
+    public String concat(List<String> list)
+    {
+      return list.stream().collect(Collectors.joining("", "{", "}"));
+    }
+
+    public String cutAt(String text, int start)
+    {
+      int startIndex = 0;
+      int endIndex = text.length();
+
+      if(start == text.length())
+      {
+        endIndex = text.lastIndexOf(" ") + 1 == 0 ? text.length() : text.lastIndexOf(" ") + 1;
+      }
+      else
+      {
+        startIndex = text.indexOf(" ") + 1;
+      }
+
+      return text.substring(startIndex, endIndex);
+    }
 
 :};
 
 terminal           SEMI, DOUBLE_COLON;
 terminal           ARG, VAR, ASSIGN, FUNCTION, PLUS, MINUS, TIMES, DIVIDE, LBRACKET, RBRACKET, COMMA;     
-terminal           LENGTH, CONCAT, REVERSE, PRINT, FSUB, LSUB;
+terminal           LENGTH, CONCAT, REVERSE, FSUB, LSUB, CFIRST, CLAST;
 terminal Integer   NUMBER;
 
-non terminal Object     expr_list, expr_part, expr, function, variable, fname, arg, vname, math_expr, args_list;
+non terminal Object     expr_list, expr_part, expr, function, variable, arg, vname, math_expr, args_list, farg, list_expr, math_expr_rhs;
 non terminal Integer    numb;
+
+precedence left PLUS, MINUS;
+precedence left TIMES, DIVIDE;
 
 expr_list               ::= expr_list expr_part | expr_part;
 
@@ -68,97 +85,102 @@ expr                    ::= function:f {: RESULT = f; :}
                             | 
                             variable;
 
-function                ::= fname:f DOUBLE_COLON arg:a
+function                ::= LENGTH DOUBLE_COLON farg:a
                             {:
-                                String arg = a.toString();
-                                RESULT = ((Function)f).apply(arg.substring(1, arg.length() - 1));
+                              RESULT = a.toString().length();
                             :}
                             |
-                            fname:f DOUBLE_COLON vname:a
+                            REVERSE DOUBLE_COLON farg:a
                             {:
-                                String arg = variables.get(a).toString();
-                                RESULT = ((Function)f).apply(arg);
+                              RESULT = reverse(a.toString());
                             :}
                             |
-                            fname:f DOUBLE_COLON function:a
+                            FSUB DOUBLE_COLON farg:a
                             {:
-                                String arg = a.toString();
-                                RESULT = ((Function)f).apply(arg);
+                              RESULT = getFirstSub(a.toString());
                             :}
                             |
-                            fname:f DOUBLE_COLON LBRACKET args_list:a RBRACKET
+                            LSUB DOUBLE_COLON farg:a
                             {:
-                                List arr = (List)a;
-                                String result = "";
-                                for(Object o : arr){
-                                    result += o.toString();
-                                }
-                                arr.clear();                           
-                                RESULT = result;
+                              RESULT = getLastSub(a.toString());
                             :}
                             |
-                            FUNCTION DOUBLE_COLON math_expr:a
+                            CFIRST DOUBLE_COLON farg:a
+                            {:
+                              RESULT = cutAt(a.toString(), 0);
+                            :}
+                            |
+                            CLAST DOUBLE_COLON farg:a
+                            {:
+                              RESULT = cutAt(a.toString(), a.toString().length());
+                            :}
+                            |
+                            CONCAT DOUBLE_COLON list_expr:e
+                            {:
+                              RESULT = concat((List)e);
+                            :}
+                            |
+                            FUNCTION DOUBLE_COLON farg:a
                             {:
                                 RESULT = a;
+                            :}
+                            ;                     
+
+farg                    ::= arg:a       {: RESULT = a; :} 
+                            | 
+                            vname:v     {: RESULT = variables.get(v).toString(); :} 
+                            | 
+                            function:f  {: RESULT = f; :} 
+                            | 
+                            math_expr:e {: RESULT = e; :} 
+                            |
+                            numb:n      {: RESULT = n.toString(); :} 
+                            ;   
+
+list_expr               ::= LBRACKET args_list:a RBRACKET {: RESULT = a; :};
+
+args_list               ::= args_list:l COMMA farg:a 
+                            {: 
+                              ((List)l).add(a); 
+                              RESULT = l; 
+                            :} 
+                            | 
+                            farg:a 
+                            {: 
+                              List list = new ArrayList<>();
+                              list.add(a);
+                              RESULT = list; 
                             :};
 
-fname                   ::= CONCAT  {: RESULT = functions.get("CONCAT"); :}
+math_expr               ::= numb:e PLUS math_expr_rhs:f 
+                            {: 
+                                RESULT = new Integer(e.intValue() + (int)f); 
+                            :}
                             |
-                            LENGTH  {: RESULT = functions.get("LENGTH"); :}
+                            numb:e MINUS math_expr_rhs:f 
+                            {: 
+                                RESULT = new Integer(e.intValue() - (int)f); 
+                            :}
                             |
-                            REVERSE {: RESULT = functions.get("REVERSE"); :}
+                            numb:e TIMES math_expr_rhs:f 
+                            {: 
+                                RESULT = new Integer(e.intValue() * (int)f); 
+                            :}
                             |
-                            PRINT   {: RESULT = functions.get("PRINT"); :}             
-                            |
-                            LSUB    {: RESULT = functions.get("LSUB"); :}  
-                            |
-                            FSUB    {: RESULT = functions.get("FSUB"); :};    
+                            numb:e DIVIDE math_expr_rhs:f 
+                            {: 
+                                RESULT = new Integer(e.intValue() / (int)f); 
+                            :}
+                            ;
 
-args_list               ::= args_list COMMA numb:n {: args.add(n); RESULT = args;:} 
+math_expr_rhs           ::= math_expr:e {: RESULT = e; :} 
                             | 
-                            args_list COMMA arg:a {: args.add(a); RESULT = args; :} 
-                            | 
-                            arg:a {: args.add(a); RESULT = args; :} 
-                            | 
-                            numb:n {: args.add(n); RESULT = args; :};
+                            numb:n {: RESULT = n; :}
+                            ;                                 
 
-math_expr               ::= numb:e PLUS numb:f 
-                            {: 
-                                RESULT = new Integer(e.intValue() + f.intValue()); 
-                            :}
-                            |
-                            numb:e MINUS numb:f 
-                            {: 
-                                RESULT = new Integer(e.intValue() - f.intValue()); 
-                            :}
-                            |
-                            numb:e TIMES numb:f 
-                            {: 
-                                RESULT = new Integer(e.intValue() * f.intValue()); 
-                            :}
-                            |
-                            numb:e DIVIDE numb:f 
-                            {: 
-                                RESULT = new Integer(e.intValue() / f.intValue()); 
-                            :};       
+numb                    ::= NUMBER:n {: RESULT = new Integer(n.intValue()); :};         
 
-numb                    ::= NUMBER:n {: RESULT = new Integer(n.intValue()); :}
-                            |
-                            vname:v {: RESULT = new Integer(variables.get(v).toString()); :};             
-
-variable                ::= vname:vn ASSIGN arg:a
-                            {:
-                                variables.put(vn, a.toString().substring(1, a.toString().length() - 1));
-                                RESULT = a;
-                            :}
-                            |
-                            vname:vn ASSIGN function:a
-                            {:
-                                variables.put(vn, a);
-                                RESULT = a;
-                            :}
-                            |
-                            vname:vn ASSIGN numb:a
+variable                ::= vname:vn ASSIGN farg:a
                             {:
                                 variables.put(vn, a);
                                 RESULT = a;
@@ -166,4 +188,4 @@ variable                ::= vname:vn ASSIGN arg:a
 
 vname                   ::= VAR:v   {: RESULT = v; :};
 
-arg                     ::= ARG:a   {: RESULT = a; :};    
+arg                     ::= ARG:a   {: RESULT = clearArg(a.toString()); :};    

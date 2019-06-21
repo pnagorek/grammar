@@ -56,11 +56,13 @@ Number = [0-9]*
 
     "reverse"          { return symbol(sym.REVERSE); }
 
-    "print"            { return symbol(sym.PRINT); }
-
     "first_sub"        { return symbol(sym.FSUB); }
 
     "last_sub"         { return symbol(sym.LSUB); }
+
+    "cut_first"        { return symbol(sym.CFIRST); }
+
+    "cut_last"         { return symbol(sym.CLAST); }
 
     "function"         { return symbol(sym.FUNCTION); }
 
