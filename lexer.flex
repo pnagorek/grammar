@@ -22,9 +22,9 @@ import java_cup.runtime.*;
 LineTerminator = \r|\n|\r\n
 WhiteSpace     = {LineTerminator} | [ \t\f]
 
-Argument = '[^']*'
-Variable = [a-zA-Z]*
-Number = [0-9]*
+Argument = '[^']+'
+Variable = [a-zA-Z]+
+Number = [0-9]+
 
 %%
 
